@@ -1,0 +1,446 @@
+activate_this = "/home/qingyao/ncov/dash_env/bin/activate_this.py"
+exec(open(activate_this).read(), {'__file__': activate_this})
+import dash
+from flask import Flask
+import dash_table
+import dash_core_components as dcc
+import dash_html_components as html
+import dash_bootstrap_components as dbc
+import pandas as pd
+from datetime import datetime
+from dash.dependencies import Input, Output
+from pymongo import MongoClient
+import json, re, sys, math, os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# from urllib.request import urlopen
+# import ssl
+
+# ssl._create_default_https_context = ssl._create_unverified_context
+
+print('hello Im running the App!', file=sys.stderr)
+external_stylesheet = ['https://codepen.io/chriddyp/pen/bWLwgP.css']#['/Users/pgweb/Downloads/WHITE_EDITION/css/style.css']
+
+external_stylesheets = [
+    'https://codepen.io/chriddyp/pen/bWLwgP.css',
+    {
+        'href': 'https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css',
+        'rel': 'stylesheet',
+        'integrity': 'sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO',
+        'crossorigin': 'anonymous'
+    }
+]
+
+colors = {
+    'background': '#111111',
+    'text': '#747474'
+}
+
+
+styles = {
+    'H1': {
+        'font-family':"Open Sans",
+        'font-size': '20px',
+        'color':colors['text'],
+        'text-align': 'center'
+    },
+    'H2': {
+        'font-family':"Open Sans",
+        'font-size': '18px',
+        'color':colors['text'],
+        'text-align': 'center'
+    }
+
+}
+
+marker = {
+    'size': 7
+}
+
+
+#https://github.com/longwosion/geojson-map-china/blob/master/china.json
+with open('china.json','r') as f:
+    provinces = json.load(f)
+
+for province in provinces['features']:
+    province['id']=province['properties']['name']
+
+#load county data
+with open('county_case.json') as f:
+    county = json.load(f)
+### load data
+all_files = sorted(os.listdir('data_dict'))
+with open('data_dict/'+all_files[-1]) as f: #latest
+    data = json.load(f)
+
+curr_dat = {'province':[],'no':[],'no_cure':[], 'no_death':[]}
+for province, dat in data.items():
+    
+    curr_dat['province'].append(province)
+    # curr_dat['province_id'].append(name_id_map[province])
+    curr_dat['no'].append(dat['confirm']['no'][-1])
+    if dat['cure']['no']:
+        curr_dat['no_cure'].append(dat['cure']['no'][-1])
+    else:
+        curr_dat['no_cure'].append(0)
+    if dat['death']['no']:
+        curr_dat['no_death'].append(dat['death']['no'][-1])
+    else:
+        curr_dat['no_death'].append(0)
+
+df = pd.DataFrame.from_dict(curr_dat)#.astype({'province_id':str})
+
+# print(df)
+df['text'] = '治愈: ' + df['no_cure'].astype(str) + '<br>' + '死亡: ' + df['no_death'].astype(str)
+fig = go.Figure(go.Choroplethmapbox(geojson=provinces, locations=df.province, z=df.no,
+                                    text=df.text,
+                                    # colorscale="BuPu", 
+                                    colorscale= [
+                                        [0, 'rgb(16, 16, 16)'],        #0
+                                        [1./10000, 'rgb(62, 58, 13)'], #10
+                                        [1./1000, 'rgb(109, 101, 10)'],  #100
+                                        [1./100, 'rgb(156, 143, 6)'],   #1000
+                                        [1./10, 'rgb(203, 186, 3)'],       #10000
+                                        [1., 'rgb(250, 228, 0)'],             #100000
+                                        ],
+                                    zmin=0, zmax=max(df.no),
+                                    marker_opacity=0.7, marker_line_width=0))
+
+fig.update_layout(mapbox_style="carto-darkmatter",
+                plot_bgcolor= colors['background'],
+                paper_bgcolor= colors['background'],
+                  mapbox_zoom=2.7, mapbox_center = {"lat": 38.2666, "lon": 105})
+fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+
+# print(data['China']['death'])
+df1 = pd.DataFrame.from_dict({**data['China']['confirm'],**{'state':['confirmed']*len(data['China']['confirm']['no'])}})
+df2 = pd.DataFrame.from_dict({**data['China']['cure'],**{'state':['cured']*len(data['China']['cure']['no'])}})
+df3 = pd.DataFrame.from_dict({**data['China']['death'],**{'state':['dead']*len(data['China']['death']['no'])}})
+
+df1['time'] = pd.to_datetime(df1['time']).dt.date
+df1 = df1.drop_duplicates('time', keep = 'last')
+df2['time'] = pd.to_datetime(df2['time']).dt.date
+df2 = df2.drop_duplicates('time', keep = 'last')
+df3['time'] = pd.to_datetime(df3['time']).dt.date
+df3 = df3.drop_duplicates('time', keep = 'last')
+
+china_plot = make_subplots()#specs=[[{"secondary_y": True}]])
+
+china_plot.add_trace(go.Scatter(x=df1['time'][:-1], 
+                        y=df1['no'][:-1],
+                        name = '确诊',
+                        mode = 'lines+markers',
+                        marker = {'color':'#FFE400', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_Y=false)
+china_plot.add_trace(go.Scatter(x=df1['time'][-2:], 
+                        y=df1['no'][-2:],
+                        name = '确诊',
+                        showlegend=False,
+                        line = {'dash':'dash'},
+                        marker = {'color':'#FFE400', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_Y=false)
+
+china_plot.add_trace(go.Scatter(x=df2['time'][:-1], 
+                        y=df2['no'][:-1],
+                        name = '治愈',
+                        mode = 'lines+markers',
+                        marker = {'color':'#14A76C', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_y=false)
+
+china_plot.add_trace(go.Scatter(x=df2['time'][-2:], 
+                        y=df2['no'][-2:],
+                        name = '治愈',
+                        showlegend=False,
+                        line = {'dash':'dash'},
+                        marker = {'color':'#14A76C', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_Y=false)
+
+china_plot.add_trace(go.Scatter(x=df3['time'][:-1], 
+                        y=df3['no'][:-1],
+                        name = '死亡',
+                        mode = 'lines+markers',
+                        marker = {'color':'#FF652F', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_y=false)
+
+china_plot.add_trace(go.Scatter(x=df3['time'][-2:], 
+                        y=df3['no'][-2:],
+                        name = '死亡',
+                        showlegend=False,
+                        line = {'dash':'dash'},
+                        marker = {'color':'#FF652F', 'size':marker['size'],
+                        'line':dict(
+                                color=colors['background'],
+                                width=1
+                            )}
+                        ))#,secondary_Y=false)
+
+china_plot.update_layout(title={'text':"全国范围",'x':0.5,}, 
+    plot_bgcolor=colors['background'], 
+    paper_bgcolor = colors['background'],
+    font={'color':colors['text']},
+    xaxis={'showgrid':False},
+    yaxis={'showgrid':True,'gridcolor':colors['text']},
+    legend_orientation="h")
+# china_plot.update_yaxes(title_text="感染人数")#,secondary_y=false)
+# china_plot.update_yaxes(title_text="治愈及死亡人数")#,secondary_y=false)
+
+last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
+last_update_time = last_update_time.strftime("%m月%d日%H时")
+
+server = Flask(__name__)
+server.secret_key ='test'
+
+#@server.route("/")
+#def hello():
+#    return ('Hello')
+
+
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
+#app = dash.Dash(__name__, server = server, 
+#routes_pathname_prefix='/',#url_base_pathname='/dash/',
+#requests_pathname_prefix='/')#/dash_env/lib/python3.8/site-packages/')
+ 
+# app.layout = html.Div(['hello Alo'])
+#app.css.config.serve_locally = True
+#app.scripts.config.serve_locally = True
+#print(app.config['requests_pathname_prefix'], file = sys.stderr) 
+ ## app.config.suppress_callback_exceptions = True
+ #
+def say_hi():
+    print("OLA!", file=sys.stderr)
+
+    return html.H1('Hi')
+app.layout = html.Div(style={'backgroundColor': colors['background']},
+                    children = [dbc.Row([
+                                        dbc.Col(dcc.Graph(id='map',figure=fig),
+                                            width={'size':6, 'offset':1}),
+                                        dbc.Col(html.Div([
+                                            html.H1('2019-nCoV', id='title',style = styles['H1']),
+                                            html.H2('截至{}'.format(last_update_time), id='subtitle',style = styles['H2']),
+                                            dcc.Graph(
+                                            id='china_plot',
+                                            figure=china_plot
+                                            )]),    
+                                            width={'size':5})
+                                        ]),
+
+                    # html.Div([
+                    #         dcc.Markdown("""
+                    #             **Click Data**
+
+                    #             Click on points in the graph.
+                    #         """),
+                    #         html.Pre(id='click-data', style=styles['pre'])
+                    #     ], className='three columns'),
+                    
+        dbc.Row([
+
+            dbc.Col(html.Div([
+                html.H1('点地图显示省份',style = styles['H1']),
+                # html.Br(),
+                # html.H1('截取放大'),
+                # html.Br(),
+                # html.H1('双击复原')]), 
+                ]),
+                align="center", width={'size':2,'offset':1},),
+            dbc.Col(dcc.Graph(
+                        id='infect_plot',
+                        figure={'layout': {
+                        'plot_bgcolor': colors['background'],
+                        'paper_bgcolor': colors['background'],
+                        'xaxis':{'showgrid':False, 'visible':False},
+                        'yaxis':{'showgrid':False, 'visible':False},
+                        'font': {
+                            'color': colors['text']
+                        }}}),
+                    width={'size':5}),
+            dbc.Col([html.Div([html.H2(id = 'county_header', style = styles['H2']),
+                        html.Br()]),
+                    dbc.Table(id='counties')
+
+                ], width = 3,
+                style={ "margin-top":"40px"})
+            ,
+    
+            
+        ])
+    ]
+
+)
+
+# @app.callback(
+#     Output('click-data', 'children'),
+#     [Input('map', 'clickData')])
+# def display_click_data(clickData):
+#     return json.dumps(clickData, indent=2)
+
+@app.callback(
+    Output('counties', 'children'),
+    [Input('map', 'clickData')])
+def display_counties(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province in county:
+        return_txt = ''
+        con=[]
+        cure=[]
+        death=[]
+        for i in county[sel_province].values():
+            con.append(i[0])
+            cure.append(i[1])
+            death.append(i[2])
+
+        df = pd.DataFrame({'区域': list(county[sel_province].keys()),'确诊':con, '治愈':cure,'死亡':death})
+        df.sort_values(by='确诊', inplace=True, ascending=False)
+        # dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+        return dash_table.DataTable(
+            style_data={
+                'whiteSpace': 'normal',
+                'height': 'auto'
+            },
+            style_cell={'maxWidth': '60px','textAlign': 'left','backgroundColor':'black'},
+            style_table={'maxHeight': '300px','overflowY': 'scroll','font-size':"16px",'backgroundColor':'black', 'color':colors['text']},
+            data=df.to_dict('records'),
+            columns=[{'id': c, 'name': c} for c in df.columns],
+            style_as_list_view=True,
+        )  
+    else:
+        return ''
+
+@app.callback(
+    Output('county_header', 'children'),
+    [Input('map', 'clickData')])
+def display_counties(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province in county:        
+        return '{}各市区'.format(sel_province)
+    else:
+        return ''
+
+@app.callback(
+    Output('infect_plot', 'figure'),
+    [Input('map', 'clickData')])
+def plot_infect(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    
+    df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
+    df2 = pd.DataFrame.from_dict({**data[sel_province]['cure'],**{'state':['cured']*len(data[sel_province]['cure']['no'])}})
+    df3 = pd.DataFrame.from_dict({**data[sel_province]['death'],**{'state':['dead']*len(data[sel_province]['death']['no'])}})
+    df1['time'] = pd.to_datetime(df1['time']).dt.date
+    df1 = df1.drop_duplicates('time', keep = 'last')
+    df2['time'] = pd.to_datetime(df2['time']).dt.date
+    df2 = df2.drop_duplicates('time', keep = 'last')
+    df3['time'] = pd.to_datetime(df3['time']).dt.date
+    df3 = df3.drop_duplicates('time', keep = 'last')
+
+    plot_df = pd.concat([df1,df2,df3])
+    
+    print(plot_df)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][:-1], 
+                            y=plot_df[plot_df['state']=='confirmed']['no'][:-1],
+                            mode = 'lines+markers',
+                            name = '确诊',
+                            marker = {'color':'#FFE400', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))#,secondary_Y=false)
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='confirmed']['no'][-2:],
+                            name = '确诊',
+                            showlegend=False,
+                            line = {'dash':'dash'},
+                            marker = {'color':'#FFE400', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )},          
+                            ))#,secondary_Y=false)
+
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][:-1], 
+                            y=plot_df[plot_df['state']=='cured']['no'][:-1],
+                            name = '治愈',
+                            mode = 'lines+markers',
+                            marker = {'color':'#14A76C', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))#,secondary_y=false)
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='cured']['no'][-2:],
+                            name = '治愈',
+                            showlegend=False,
+                            line = {'dash':'dash'},
+                            marker = {'color':'#14A76C', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))#,secondary_y=false)
+
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][:-1], 
+                            y=plot_df[plot_df['state']=='dead']['no'][:-1],
+                            name = '死亡',
+                            mode = 'lines+markers',
+                            marker = {'color':'#FF652F', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))#,secondary_y=false)
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='dead']['no'][-2:],
+                            name = '死亡',
+                            showlegend=False,
+                            line = {'dash':'dash'},
+                            marker = {'color':'#FF652F', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))#,secondary_y=false)
+
+    # fig.update_yaxes(title_text="感染人数")#,secondary_y=false)
+    # fig.update_yaxes(title_text="治愈及死亡人数")#,secondary_y=false)
+
+    # fig = go.Figure([go.Scatter(x=plot_df[plot_df['state']==i]['time'], 
+                            # y=plot_df[plot_df['state']==i]['no'],
+                            # name=i)
+                            # for i in plot_df['state'].unique()])
+    fig.update_layout(title={'text':'{}感染情况'.format(sel_province),'x':0.47,'xanchor':'center'},
+    plot_bgcolor=colors['background'], 
+    paper_bgcolor = colors['background'],
+    font={'color':colors['text']},
+    xaxis={'showgrid':False},
+    yaxis={'showgrid':True,'gridcolor':colors['text']},
+    legend_orientation="h")
+    return fig
+
+
+# app.layout = html.Div([say_hi()])
+if __name__ == '__main__':
+    app.run_server(host = '0.0.0.0',port=8051)#debug=True)

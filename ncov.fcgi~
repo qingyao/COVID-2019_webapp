@@ -1,0 +1,17 @@
+#!/home/qingyao/dash_env/bin/python3.8
+from flup.server.fcgi import WSGIServer
+import sys,os,logging
+logging.basicConfig(filename='/var/www/logs/dash.log', level =10)
+
+sys.path.insert(0, '/var/www/html/ncov')
+
+activate_this = '/var/www/html/ncov/dash_env/bin'
+execfile(activate_this, dict(__file__=activate_this))
+
+from app import server as application
+
+print("Hello World", file=sys.stderr)
+
+
+if __name__ == '__main__':
+    WSGIServer(application).run()

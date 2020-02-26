@@ -1,0 +1,8 @@
+tmp_add.py
+update_data_20200217.py
+dash_env/
+data_dict/
+new_data/
+__pycache__/
+.DS_Store
+county_case.json
