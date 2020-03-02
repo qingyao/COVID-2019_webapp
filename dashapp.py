@@ -55,7 +55,8 @@ styles = {
 }
 
 marker = {
-    'size': 7
+    'size': 7,
+    'small_size': 5
 }
 
 
@@ -155,7 +156,7 @@ df2 = df2.drop_duplicates('time', keep = 'last')
 df3['time'] = pd.to_datetime(df3['time']).dt.date
 df3 = df3.drop_duplicates('time', keep = 'last')
 
-china_plot = make_subplots()#specs=[[{"secondary_y": True}]])
+china_plot = make_subplots()
 
 china_plot.add_trace(go.Scatter(x=df1['time'][:-1], 
                         y=df1['no'][:-1],
@@ -391,6 +392,18 @@ def plot_infect(clickData):
     print(plot_df)
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='confirmed']['no'][-2:],
+                            name = '确诊',
+                            showlegend=False,
+                            line = {'dash':'dash', 'color': '#FFE400'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
+                            'line':dict(
+                                    color='#FFE400',
+                                    width=1.5
+                                )},          
+                            ))    #,secondary_Y=false)
+
     fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][:-1], 
                             y=plot_df[plot_df['state']=='confirmed']['no'][:-1],
                             mode = 'lines+markers',
@@ -401,18 +414,19 @@ def plot_infect(clickData):
                                     width=1
                                 )}
                             ))#,secondary_Y=false)
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='confirmed']['no'][-2:],
-                            name = '确诊',
+ 
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='cured']['no'][-2:],
+                            name = '治愈',
                             showlegend=False,
-                            line = {'dash':'dash'},
-                            marker = {'color':'#FFE400', 'size':marker['size'],
+                            line = {'dash':'dash', 'color': '#14A76C'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
                             'line':dict(
-                                    color=colors['background'],
-                                    width=1
-                                )},          
-                            ))#,secondary_Y=false)
-
+                                    color='#14A76C',
+                                    width=1.5
+                                )}
+                            ))#,secondary_y=false)
+ 
     fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][:-1], 
                             y=plot_df[plot_df['state']=='cured']['no'][:-1],
                             name = '治愈',
@@ -423,15 +437,16 @@ def plot_infect(clickData):
                                     width=1
                                 )}
                             ))#,secondary_y=false)
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='cured']['no'][-2:],
-                            name = '治愈',
+
+    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][-2:], 
+                            y=plot_df[plot_df['state']=='dead']['no'][-2:],
+                            name = '死亡',
                             showlegend=False,
-                            line = {'dash':'dash'},
-                            marker = {'color':'#14A76C', 'size':marker['size'],
+                            line = {'dash':'dash', 'color': '#FF652F'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
                             'line':dict(
-                                    color=colors['background'],
-                                    width=1
+                                    color='#FF652F',
+                                    width=1.5
                                 )}
                             ))#,secondary_y=false)
 
@@ -439,17 +454,6 @@ def plot_infect(clickData):
                             y=plot_df[plot_df['state']=='dead']['no'][:-1],
                             name = '死亡',
                             mode = 'lines+markers',
-                            marker = {'color':'#FF652F', 'size':marker['size'],
-                            'line':dict(
-                                    color=colors['background'],
-                                    width=1
-                                )}
-                            ))#,secondary_y=false)
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='dead']['no'][-2:],
-                            name = '死亡',
-                            showlegend=False,
-                            line = {'dash':'dash'},
                             marker = {'color':'#FF652F', 'size':marker['size'],
                             'line':dict(
                                     color=colors['background'],
