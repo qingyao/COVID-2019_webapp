@@ -59,10 +59,20 @@ marker = {
 }
 
 
+translate_map = {}
+eng_chn = {}
+with open('country_translation.csv') as f:
+    for l in f:
+        chn, eng = l.strip().split(',') 
+        translate_map[chn] = eng
+        eng_chn[eng] = chn
 #https://github.com/longwosion/geojson-map-china/blob/master/china.json
 with open('china.json','r') as f:
     provinces = json.load(f)
+with open('world.geo.json') as f:
+    world = json.load(f)
 
+provinces['features']+=[i for i in world['features'] if i['properties']['name'] != 'China']
 for province in provinces['features']:
     province['id']=province['properties']['name']
 
@@ -89,10 +99,29 @@ for province, dat in data.items():
     else:
         curr_dat['no_death'].append(0)
 
+with open('oversea_data_dict/'+sorted(os.listdir('oversea_data_dict'))[-1]) as f: #latest
+    oversea_data = json.load(f)
+data.update(oversea_data)
+for country, dat in oversea_data.items():
+    try: 
+        curr_dat['province'].append(translate_map[country])
+    except KeyError:
+        with open('new_data.log','a') as f:
+            print(country, 'new country\n', file = f)
+        continue 
+    curr_dat['no'].append(dat['confirm']['no'][-1])
+    if dat['cure']['no']:
+        curr_dat['no_cure'].append(dat['cure']['no'][-1])
+    else:
+        curr_dat['no_cure'].append(0)
+    if dat['death']['no']:
+        curr_dat['no_death'].append(dat['death']['no'][-1])
+    else:
+        curr_dat['no_death'].append(0)
 df = pd.DataFrame.from_dict(curr_dat)#.astype({'province_id':str})
 
 # print(df)
-df['text'] = '治愈: ' + df['no_cure'].astype(str) + '<br>' + '死亡: ' + df['no_death'].astype(str)
+df['text'] = 'Cured:' + df['no_cure'].astype(str) + '<br>' + 'Dead:' + df['no_death'].astype(str)
 fig = go.Figure(go.Choroplethmapbox(geojson=provinces, locations=df.province, z=df.no,
                                     text=df.text,
                                     # colorscale="BuPu", 
@@ -105,12 +134,13 @@ fig = go.Figure(go.Choroplethmapbox(geojson=provinces, locations=df.province, z=
                                         [1., 'rgb(250, 228, 0)'],             #100000
                                         ],
                                     zmin=0, zmax=max(df.no),
+                                    showscale=False,
                                     marker_opacity=0.7, marker_line_width=0))
 
 fig.update_layout(mapbox_style="carto-darkmatter",
                 plot_bgcolor= colors['background'],
                 paper_bgcolor= colors['background'],
-                  mapbox_zoom=2.7, mapbox_center = {"lat": 38.2666, "lon": 105})
+                  mapbox_zoom=2.7, mapbox_center = {"lat": 50, "lon": 10})
 fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
 # print(data['China']['death'])
@@ -217,6 +247,7 @@ server.secret_key ='test'
 
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
+app.title = '各国新冠肺炎实时追踪'
 #app = dash.Dash(__name__, server = server, 
 #routes_pathname_prefix='/',#url_base_pathname='/dash/',
 #requests_pathname_prefix='/')#/dash_env/lib/python3.8/site-packages/')
@@ -231,13 +262,14 @@ def say_hi():
     print("OLA!", file=sys.stderr)
 
     return html.H1('Hi')
-app.layout = html.Div(style={'backgroundColor': colors['background']},
+app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'100%'},
                     children = [dbc.Row([
                                         dbc.Col(dcc.Graph(id='map',figure=fig),
                                             width={'size':6, 'offset':1}),
                                         dbc.Col(html.Div([
                                             html.H1('2019-nCoV', id='title',style = styles['H1']),
-                                            html.H2('截至{}'.format(last_update_time), id='subtitle',style = styles['H2']),
+                                            html.H2('截至北京时间{}'.format(last_update_time), id='subtitle',style = styles['H2']),
+                                            html.H2('数据来缘：国家卫健委、世卫组织', id='subtitle2',style = styles['H2']),
                                             dcc.Graph(
                                             id='china_plot',
                                             figure=china_plot
@@ -257,7 +289,7 @@ app.layout = html.Div(style={'backgroundColor': colors['background']},
         dbc.Row([
 
             dbc.Col(html.Div([
-                html.H1('点地图显示省份',style = styles['H1']),
+                html.H1('点地图显示地区',style = styles['H1']),
                 # html.Br(),
                 # html.H1('截取放大'),
                 # html.Br(),
@@ -342,7 +374,8 @@ def display_counties(clickData):
     [Input('map', 'clickData')])
 def plot_infect(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
-    
+    if sel_province not in data:
+        sel_province = eng_chn[sel_province]
     df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
     df2 = pd.DataFrame.from_dict({**data[sel_province]['cure'],**{'state':['cured']*len(data[sel_province]['cure']['no'])}})
     df3 = pd.DataFrame.from_dict({**data[sel_province]['death'],**{'state':['dead']*len(data[sel_province]['death']['no'])}})

@@ -6,3 +6,8 @@ new_data/
 __pycache__/
 .DS_Store
 county_case.json
+.dashapp.py.swo
+test.js
+update_data_20200228_incl_abroad.py
+oversea_data_dict/
+new_data.log
