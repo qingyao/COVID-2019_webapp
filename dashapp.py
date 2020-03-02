@@ -156,88 +156,100 @@ df2 = df2.drop_duplicates('time', keep = 'last')
 df3['time'] = pd.to_datetime(df3['time']).dt.date
 df3 = df3.drop_duplicates('time', keep = 'last')
 
-china_plot = make_subplots()
+last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
+last_update_time = last_update_time.strftime("%m月%d日%H时")
 
-china_plot.add_trace(go.Scatter(x=df1['time'][:-1], 
-                        y=df1['no'][:-1],
-                        name = '确诊',
-                        mode = 'lines+markers',
-                        marker = {'color':'#FFE400', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_Y=false)
-china_plot.add_trace(go.Scatter(x=df1['time'][-2:], 
-                        y=df1['no'][-2:],
-                        name = '确诊',
-                        showlegend=False,
-                        line = {'dash':'dash'},
-                        marker = {'color':'#FFE400', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_Y=false)
+def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
 
-china_plot.add_trace(go.Scatter(x=df2['time'][:-1], 
-                        y=df2['no'][:-1],
-                        name = '治愈',
-                        mode = 'lines+markers',
-                        marker = {'color':'#14A76C', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_y=false)
+    fig = make_subplots()
 
-china_plot.add_trace(go.Scatter(x=df2['time'][-2:], 
-                        y=df2['no'][-2:],
-                        name = '治愈',
-                        showlegend=False,
-                        line = {'dash':'dash'},
-                        marker = {'color':'#14A76C', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_Y=false)
+    fig.add_trace(go.Scatter(x=dataframe_1['time'][-2:], 
+                            y=dataframe_1['no'][-2:],
+                            name = '确诊',
+                            showlegend=False,
+                            line = {'dash':'dash', 'color': '#FFE400'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
+                            'line':dict(
+                                    color='#FFE400',
+                                    width=1.5
+                                )},          
+                            ))    
 
-china_plot.add_trace(go.Scatter(x=df3['time'][:-1], 
-                        y=df3['no'][:-1],
-                        name = '死亡',
-                        mode = 'lines+markers',
-                        marker = {'color':'#FF652F', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_y=false)
+    fig.add_trace(go.Scatter(x=dataframe_1['time'][:-1], 
+                            y=dataframe_1['no'][:-1],
+                            mode = 'lines+markers',
+                            name = '确诊',
+                            marker = {'color':'#FFE400', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))
+ 
+    fig.add_trace(go.Scatter(x=dataframe_2['time'][-2:], 
+                            y=dataframe_2['no'][-2:],
+                            name = '治愈',
+                            showlegend=False,
+                            line = {'dash':'dash', 'color': '#14A76C'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
+                            'line':dict(
+                                    color='#14A76C',
+                                    width=1.5
+                                )}
+                            ))
+ 
+    fig.add_trace(go.Scatter(x=dataframe_2['time'][:-1], 
+                            y=dataframe_2['no'][:-1],
+                            name = '治愈',
+                            mode = 'lines+markers',
+                            marker = {'color':'#14A76C', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))
 
-china_plot.add_trace(go.Scatter(x=df3['time'][-2:], 
-                        y=df3['no'][-2:],
-                        name = '死亡',
-                        showlegend=False,
-                        line = {'dash':'dash'},
-                        marker = {'color':'#FF652F', 'size':marker['size'],
-                        'line':dict(
-                                color=colors['background'],
-                                width=1
-                            )}
-                        ))#,secondary_Y=false)
+    fig.add_trace(go.Scatter(x=dataframe_3['time'][-2:], 
+                            y=dataframe_3['no'][-2:],
+                            name = '死亡',
+                            showlegend=False,
+                            line = {'dash':'dash', 'color': '#FF652F'},
+                            marker = {'color':colors['background'], 'size':marker['small_size'],
+                            'line':dict(
+                                    color='#FF652F',
+                                    width=1.5
+                                )}
+                            ))
 
-china_plot.update_layout(title={'text':"全国范围",'x':0.5,}, 
+    fig.add_trace(go.Scatter(x=dataframe_3['time'][:-1], 
+                            y=dataframe_3['no'][:-1],
+                            name = '死亡',
+                            mode = 'lines+markers',
+                            marker = {'color':'#FF652F', 'size':marker['size'],
+                            'line':dict(
+                                    color=colors['background'],
+                                    width=1
+                                )}
+                            ))
+
+    # fig.update_yaxes(title_text="感染人数")
+    # fig.update_yaxes(title_text="治愈及死亡人数")
+
+    # fig = go.Figure([go.Scatter(x=plot_df[plot_df['state']==i]['time'], 
+                            # y=plot_df[plot_df['state']==i]['no'],
+                            # name=i)
+                            # for i in plot_df['state'].unique()])
+    fig.update_layout(title=title_layout,
     plot_bgcolor=colors['background'], 
     paper_bgcolor = colors['background'],
     font={'color':colors['text']},
     xaxis={'showgrid':False},
     yaxis={'showgrid':True,'gridcolor':colors['text']},
     legend_orientation="h")
-# china_plot.update_yaxes(title_text="感染人数")#,secondary_y=false)
-# china_plot.update_yaxes(title_text="治愈及死亡人数")#,secondary_y=false)
+    return fig
 
-last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
-last_update_time = last_update_time.strftime("%m月%d日%H时")
+china_plot = plot_trend(df1,df2,df3, {'text':"全国范围",'x':0.5})
+
 
 server = Flask(__name__)
 server.secret_key ='test'
@@ -245,8 +257,6 @@ server.secret_key ='test'
 #@server.route("/")
 #def hello():
 #    return ('Hello')
-
-
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
 app.title = '各国新冠肺炎实时追踪'
 #app = dash.Dash(__name__, server = server, 
@@ -259,10 +269,7 @@ app.title = '各国新冠肺炎实时追踪'
 #print(app.config['requests_pathname_prefix'], file = sys.stderr) 
  ## app.config.suppress_callback_exceptions = True
  #
-def say_hi():
-    print("OLA!", file=sys.stderr)
 
-    return html.H1('Hi')
 app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'100%'},
                     children = [dbc.Row([
                                         dbc.Col(dcc.Graph(id='map',figure=fig),
@@ -272,7 +279,7 @@ app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'
                                             html.H2('截至北京时间{}'.format(last_update_time), id='subtitle',style = styles['H2']),
                                             html.H2('数据来缘：国家卫健委、世卫组织', id='subtitle2',style = styles['H2']),
                                             dcc.Graph(
-                                            id='china_plot',
+                                            id='main_plot',
                                             figure=china_plot
                                             )]),    
                                             width={'size':5})
@@ -387,95 +394,15 @@ def plot_infect(clickData):
     df3['time'] = pd.to_datetime(df3['time']).dt.date
     df3 = df3.drop_duplicates('time', keep = 'last')
 
-    plot_df = pd.concat([df1,df2,df3])
+    # plot_df = pd.concat([df1,df2,df3])
     
-    print(plot_df)
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # print(plot_df)
+    # df1=plot_df[plot_df['state']=='confirmed']
+    # df2= plot_df[plot_df['state']=='cured']
+    # df3=plot_df[plot_df['state']=='dead']
+    layout = {'text':'{}感染情况'.format(sel_province),'x':0.47,'xanchor':'center'}
+    return plot_trend(df1,df2,df3,layout)
 
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='confirmed']['no'][-2:],
-                            name = '确诊',
-                            showlegend=False,
-                            line = {'dash':'dash', 'color': '#FFE400'},
-                            marker = {'color':colors['background'], 'size':marker['small_size'],
-                            'line':dict(
-                                    color='#FFE400',
-                                    width=1.5
-                                )},          
-                            ))    #,secondary_Y=false)
-
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='confirmed']['time'][:-1], 
-                            y=plot_df[plot_df['state']=='confirmed']['no'][:-1],
-                            mode = 'lines+markers',
-                            name = '确诊',
-                            marker = {'color':'#FFE400', 'size':marker['size'],
-                            'line':dict(
-                                    color=colors['background'],
-                                    width=1
-                                )}
-                            ))#,secondary_Y=false)
- 
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='cured']['no'][-2:],
-                            name = '治愈',
-                            showlegend=False,
-                            line = {'dash':'dash', 'color': '#14A76C'},
-                            marker = {'color':colors['background'], 'size':marker['small_size'],
-                            'line':dict(
-                                    color='#14A76C',
-                                    width=1.5
-                                )}
-                            ))#,secondary_y=false)
- 
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='cured']['time'][:-1], 
-                            y=plot_df[plot_df['state']=='cured']['no'][:-1],
-                            name = '治愈',
-                            mode = 'lines+markers',
-                            marker = {'color':'#14A76C', 'size':marker['size'],
-                            'line':dict(
-                                    color=colors['background'],
-                                    width=1
-                                )}
-                            ))#,secondary_y=false)
-
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][-2:], 
-                            y=plot_df[plot_df['state']=='dead']['no'][-2:],
-                            name = '死亡',
-                            showlegend=False,
-                            line = {'dash':'dash', 'color': '#FF652F'},
-                            marker = {'color':colors['background'], 'size':marker['small_size'],
-                            'line':dict(
-                                    color='#FF652F',
-                                    width=1.5
-                                )}
-                            ))#,secondary_y=false)
-
-    fig.add_trace(go.Scatter(x=plot_df[plot_df['state']=='dead']['time'][:-1], 
-                            y=plot_df[plot_df['state']=='dead']['no'][:-1],
-                            name = '死亡',
-                            mode = 'lines+markers',
-                            marker = {'color':'#FF652F', 'size':marker['size'],
-                            'line':dict(
-                                    color=colors['background'],
-                                    width=1
-                                )}
-                            ))#,secondary_y=false)
-
-    # fig.update_yaxes(title_text="感染人数")#,secondary_y=false)
-    # fig.update_yaxes(title_text="治愈及死亡人数")#,secondary_y=false)
-
-    # fig = go.Figure([go.Scatter(x=plot_df[plot_df['state']==i]['time'], 
-                            # y=plot_df[plot_df['state']==i]['no'],
-                            # name=i)
-                            # for i in plot_df['state'].unique()])
-    fig.update_layout(title={'text':'{}感染情况'.format(sel_province),'x':0.47,'xanchor':'center'},
-    plot_bgcolor=colors['background'], 
-    paper_bgcolor = colors['background'],
-    font={'color':colors['text']},
-    xaxis={'showgrid':False},
-    yaxis={'showgrid':True,'gridcolor':colors['text']},
-    legend_orientation="h")
-    return fig
 
 
 # app.layout = html.Div([say_hi()])
