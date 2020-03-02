@@ -108,7 +108,7 @@ for country, dat in oversea_data.items():
         curr_dat['province'].append(translate_map[country])
     except KeyError:
         with open('new_data.log','a') as f:
-            print(country, 'new country\n', file = f)
+            print(country, 'new country', file = f)
         continue 
     curr_dat['no'].append(dat['confirm']['no'][-1])
     if dat['cure']['no']:
@@ -143,21 +143,6 @@ fig.update_layout(mapbox_style="carto-darkmatter",
                 paper_bgcolor= colors['background'],
                   mapbox_zoom=2.7, mapbox_center = {"lat": 50, "lon": 10})
 fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-
-# print(data['China']['death'])
-df1 = pd.DataFrame.from_dict({**data['China']['confirm'],**{'state':['confirmed']*len(data['China']['confirm']['no'])}})
-df2 = pd.DataFrame.from_dict({**data['China']['cure'],**{'state':['cured']*len(data['China']['cure']['no'])}})
-df3 = pd.DataFrame.from_dict({**data['China']['death'],**{'state':['dead']*len(data['China']['death']['no'])}})
-
-df1['time'] = pd.to_datetime(df1['time']).dt.date
-df1 = df1.drop_duplicates('time', keep = 'last')
-df2['time'] = pd.to_datetime(df2['time']).dt.date
-df2 = df2.drop_duplicates('time', keep = 'last')
-df3['time'] = pd.to_datetime(df3['time']).dt.date
-df3 = df3.drop_duplicates('time', keep = 'last')
-
-last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
-last_update_time = last_update_time.strftime("%m月%d日%H时")
 
 def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
 
@@ -232,13 +217,6 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
                                 )}
                             ))
 
-    # fig.update_yaxes(title_text="感染人数")
-    # fig.update_yaxes(title_text="治愈及死亡人数")
-
-    # fig = go.Figure([go.Scatter(x=plot_df[plot_df['state']==i]['time'], 
-                            # y=plot_df[plot_df['state']==i]['no'],
-                            # name=i)
-                            # for i in plot_df['state'].unique()])
     fig.update_layout(title=title_layout,
     plot_bgcolor=colors['background'], 
     paper_bgcolor = colors['background'],
@@ -248,8 +226,79 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
     legend_orientation="h")
     return fig
 
-china_plot = plot_trend(df1,df2,df3, {'text':"全国范围",'x':0.5})
+def get_china_plot(dat):
+    df1 = pd.DataFrame.from_dict({**dat['China']['confirm'],**{'state':['confirmed']*len(dat['China']['confirm']['no'])}})
+    df2 = pd.DataFrame.from_dict({**dat['China']['cure'],**{'state':['cured']*len(dat['China']['cure']['no'])}})
+    df3 = pd.DataFrame.from_dict({**dat['China']['death'],**{'state':['dead']*len(dat['China']['death']['no'])}})
 
+    df1['time'] = pd.to_datetime(df1['time']).dt.date
+    df1 = df1.drop_duplicates('time', keep = 'last')
+    df2['time'] = pd.to_datetime(df2['time']).dt.date
+    df2 = df2.drop_duplicates('time', keep = 'last')
+    df3['time'] = pd.to_datetime(df3['time']).dt.date
+    df3 = df3.drop_duplicates('time', keep = 'last')
+
+    return plot_trend(df1,df2,df3, {'text':"全国范围",'x':0.5})
+
+def get_world_plot(dat):
+    
+    for country, val in dat.items():
+        if country in county:
+            continue
+        else:
+            print(country)
+        
+            tmp1 = pd.Series(val['confirm']['no'], index = val['confirm']['time'])
+            tmp1 = tmp1.loc[~tmp1.index.duplicated(keep='last')]
+            tmp2 = pd.Series(val['cure']['no'], index = val['cure']['time'])
+            tmp2 = tmp2.loc[~tmp2.index.duplicated(keep='last')]
+            tmp3 = pd.Series(val['death']['no'], index = val['death']['time'])
+            tmp3 = tmp3.loc[~tmp3.index.duplicated(keep='last')]
+
+            if 'df1' in locals():
+                df1 = pd.concat([df1, tmp1], axis = 1).sum(axis = 1, skipna = True) 
+            else:
+                df1 = tmp1
+            if 'df2' in locals():
+                df2 = pd.concat([df2, tmp2], axis = 1).sum(axis = 1, skipna = True) 
+            else:
+                df2 = tmp2
+            if 'df3' in locals():
+                df3 = pd.concat([df3, tmp3], axis = 1).sum(axis = 1, skipna = True) 
+            else:
+                df3 = tmp3
+            
+
+    df1 = pd.DataFrame(df1.rename('no'))
+    df1['state'] = 'confirmed'
+    df1.reset_index(inplace = True)
+    df1.rename(columns = {'index':'time'}, inplace = True)
+    print(df1.columns)
+
+    df2 = pd.DataFrame(df2.rename('no'))
+    df2['state'] = 'cured'
+    df2.reset_index(inplace = True)
+    df2.rename(columns = {'index':'time'}, inplace = True)
+
+    df3 = pd.DataFrame(df3.rename('no'))
+    df3['state'] = 'dead'
+    df3.reset_index(inplace = True)
+    df3.rename(columns = {'index':'time'}, inplace = True)
+
+    df1['time'] = pd.to_datetime(df1['time']).dt.date
+    df1 = df1.drop_duplicates('time', keep = 'last')
+    df2['time'] = pd.to_datetime(df2['time']).dt.date
+    df2 = df2.drop_duplicates('time', keep = 'last')
+    df3['time'] = pd.to_datetime(df3['time']).dt.date
+    df3 = df3.drop_duplicates('time', keep = 'last')
+
+    return plot_trend(df1,df2,df3, {'text':"世界范围",'x':0.5})
+
+china_plot = get_china_plot(data)
+world_plot = get_world_plot(data)
+            
+last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
+last_update_time = last_update_time.strftime("%m月%d日%H时")
 
 server = Flask(__name__)
 server.secret_key ='test'
@@ -259,17 +308,6 @@ server.secret_key ='test'
 #    return ('Hello')
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
 app.title = '各国新冠肺炎实时追踪'
-#app = dash.Dash(__name__, server = server, 
-#routes_pathname_prefix='/',#url_base_pathname='/dash/',
-#requests_pathname_prefix='/')#/dash_env/lib/python3.8/site-packages/')
- 
-# app.layout = html.Div(['hello Alo'])
-#app.css.config.serve_locally = True
-#app.scripts.config.serve_locally = True
-#print(app.config['requests_pathname_prefix'], file = sys.stderr) 
- ## app.config.suppress_callback_exceptions = True
- #
-
 app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'100%'},
                     children = [dbc.Row([
                                         dbc.Col(dcc.Graph(id='map',figure=fig),
@@ -336,6 +374,16 @@ app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'
 #     return json.dumps(clickData, indent=2)
 
 @app.callback(
+    Output('main_plot', 'figure'),
+    [Input('map', 'clickData')])
+def toggle_main_plot(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province in county:
+        return china_plot
+    else:
+        return world_plot
+
+@app.callback(
     Output('counties', 'children'),
     [Input('map', 'clickData')])
 def display_counties(clickData):
@@ -394,12 +442,6 @@ def plot_infect(clickData):
     df3['time'] = pd.to_datetime(df3['time']).dt.date
     df3 = df3.drop_duplicates('time', keep = 'last')
 
-    # plot_df = pd.concat([df1,df2,df3])
-    
-    # print(plot_df)
-    # df1=plot_df[plot_df['state']=='confirmed']
-    # df2= plot_df[plot_df['state']=='cured']
-    # df3=plot_df[plot_df['state']=='dead']
     layout = {'text':'{}感染情况'.format(sel_province),'x':0.47,'xanchor':'center'}
     return plot_trend(df1,df2,df3,layout)
 
