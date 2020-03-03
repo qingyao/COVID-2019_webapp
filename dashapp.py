@@ -41,13 +41,13 @@ colors = {
 styles = {
     'H1': {
         'font-family':"Open Sans",
-        'font-size': '20px',
+        'font-size': '3.5vh',
         'color':colors['text'],
         'text-align': 'center'
     },
     'H2': {
         'font-family':"Open Sans",
-        'font-size': '18px',
+        'font-size': '3vh',
         'color':colors['text'],
         'text-align': 'center'
     }
@@ -144,7 +144,7 @@ fig.update_layout(mapbox_style="carto-darkmatter",
                   mapbox_zoom=2.7, mapbox_center = {"lat": 50, "lon": 10})
 fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
-def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
+def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
     fig = make_subplots()
 
@@ -217,13 +217,15 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3,title_layout):
                                 )}
                             ))
 
-    fig.update_layout(title=title_layout,
+    fig.update_layout(
     plot_bgcolor=colors['background'], 
     paper_bgcolor = colors['background'],
     font={'color':colors['text']},
     xaxis={'showgrid':False},
     yaxis={'showgrid':True,'gridcolor':colors['text']},
-    legend_orientation="h")
+    legend_orientation="h",
+    margin={"r":0,"t":0,"l":0,"b":0})
+
     return fig
 
 def get_china_plot(dat):
@@ -238,7 +240,7 @@ def get_china_plot(dat):
     df3['time'] = pd.to_datetime(df3['time']).dt.date
     df3 = df3.drop_duplicates('time', keep = 'last')
 
-    return plot_trend(df1,df2,df3, {'text':"全国范围",'x':0.5})
+    return plot_trend(df1,df2,df3)
 
 def get_world_plot(dat):
     
@@ -292,7 +294,7 @@ def get_world_plot(dat):
     df3['time'] = pd.to_datetime(df3['time']).dt.date
     df3 = df3.drop_duplicates('time', keep = 'last')
 
-    return plot_trend(df1,df2,df3, {'text':"世界范围",'x':0.5})
+    return plot_trend(df1,df2,df3)
 
 china_plot = get_china_plot(data)
 world_plot = get_world_plot(data)
@@ -308,20 +310,36 @@ server.secret_key ='test'
 #    return ('Hello')
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
 app.title = '各国新冠肺炎实时追踪'
-app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'100%'},
+app.config.suppress_callback_exceptions = True 
+app.layout = dbc.Container(className="mt-4", fluid = True,
                     children = [dbc.Row([
-                                        dbc.Col(dcc.Graph(id='map',figure=fig),
-                                            width={'size':6, 'offset':1}),
                                         dbc.Col(html.Div([
-                                            html.H1('2019-nCoV', id='title',style = styles['H1']),
+                                            html.H1('COVID-19', id='title',style = styles['H1']),
                                             html.H2('截至北京时间{}'.format(last_update_time), id='subtitle',style = styles['H2']),
                                             html.H2('数据来缘：国家卫健委、世卫组织', id='subtitle2',style = styles['H2']),
-                                            dcc.Graph(
-                                            id='main_plot',
-                                            figure=china_plot
-                                            )]),    
-                                            width={'size':5})
-                                        ]),
+                                            dcc.Graph(id='map',figure=fig, config={'displayModeBar':False})]),
+                                            # width={'size':6, 'offset':1}
+                                            xl = 6, 
+                                            lg = 12,
+                                            # md = 12
+                                            ),
+                                        dbc.Col(
+                                            html.Div([
+                                                html.H2('中国范围', id='subtitle_main_plot', style = styles['H2']),
+                                                dcc.Graph(
+                                                id='main_plot',
+                                                figure=china_plot,
+                                                config={'displayModeBar':False}
+                                                )]), 
+                                                # width={'size':5}
+                                                xl = 3,
+                                                lg = 4,
+                                                md = 6,
+                                                style={ "margin-top":"40px"}
+
+                                            )
+                                        ,
+                                        
 
                     # html.Div([
                     #         dcc.Markdown("""
@@ -332,40 +350,56 @@ app.layout = html.Div(style={'backgroundColor': colors['background'], 'height':'
                     #         html.Pre(id='click-data', style=styles['pre'])
                     #     ], className='three columns'),
                     
-        dbc.Row([
+        
 
-            dbc.Col(html.Div([
-                html.H1('点地图显示地区',style = styles['H1']),
-                # html.Br(),
-                # html.H1('截取放大'),
-                # html.Br(),
-                # html.H1('双击复原')]), 
-                ]),
-                align="center", width={'size':2,'offset':1},),
-            dbc.Col(dcc.Graph(
-                        id='infect_plot',
-                        figure={'layout': {
-                        'plot_bgcolor': colors['background'],
-                        'paper_bgcolor': colors['background'],
-                        'xaxis':{'showgrid':False, 'visible':False},
-                        'yaxis':{'showgrid':False, 'visible':False},
-                        'font': {
-                            'color': colors['text']
-                        }}}),
-                    width={'size':5}),
-            dbc.Col([html.Div([html.H2(id = 'county_header', style = styles['H2']),
-                        html.Br()]),
-                    dbc.Table(id='counties')
+            # dbc.Col(html.Div([
+            #     html.H1('点地图显示地区',style = styles['H1']),
+            #     # html.Br(),
+            #     # html.H1('截取放大'),
+            #     # html.Br(),
+            #     # html.H1('双击复原')]), 
+            #     ]),
+            #     align="center", width={'size':2,'offset':1},),
+                                        dbc.Col(
+                                            html.Div([
+                                                html.H2('', id = 'title_infect_plot', style = styles['H2']),
+                                                dcc.Graph(
+                                                    id='infect_plot',
+                                                    figure={'layout': {
+                                                    'plot_bgcolor': colors['background'],
+                                                    'paper_bgcolor': colors['background'],
+                                                    'xaxis':{'showgrid':False, 'visible':False},
+                                                    'yaxis':{'showgrid':False, 'visible':False},
+                                                    'font': {
+                                                        'color': colors['text']
+                                                    }}},
+                                                    config={'displayModeBar':False}
+                                                    )
+                                                ]),
+                                                xl = 3,
+                                                lg = 4,
+                                                md = 6,
+                                                style={ "margin-top":"40px"}
+                                                # width={'size':5}
+                                                )
+                                        ,
+                                        dbc.Col([html.Div([html.H2(id = 'county_header', style = styles['H2']),
+                                                    html.Br()]),
+                                                dbc.Table(id='counties')
 
-                ], width = 3,
-                style={ "margin-top":"40px"})
-            ,
+                                            ], 
+                                            # width = 3,
+                                            xl = 3,
+                                            lg = 4,
+                                            md = 6,
+                                            style={ "margin-top":"40px"})
+                                        ,
+                                ])
+                                        
+])
     
-            
-        ])
-    ]
 
-)
+
 
 # @app.callback(
 #     Output('click-data', 'children'),
@@ -382,6 +416,17 @@ def toggle_main_plot(clickData):
         return china_plot
     else:
         return world_plot
+
+@app.callback(
+    Output('subtitle_main_plot', 'children'),
+    [Input('map', 'clickData')])
+def toggle_main_plot(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province in county:
+        return '中国范围'
+    else:
+        return '世界范围'
+
 
 @app.callback(
     Output('counties', 'children'),
@@ -409,7 +454,7 @@ def display_counties(clickData):
             style_cell={'maxWidth': '60px','textAlign': 'left','backgroundColor':'black'},
             style_table={'maxHeight': '300px','overflowY': 'scroll','font-size':"16px",'backgroundColor':'black', 'color':colors['text']},
             data=df.to_dict('records'),
-            columns=[{'id': c, 'name': c} for c in df.columns],
+            columns=[{'id': c, 'name': c, 'selectable': False} for c in df.columns],
             style_as_list_view=True,
         )  
     else:
@@ -442,9 +487,17 @@ def plot_infect(clickData):
     df3['time'] = pd.to_datetime(df3['time']).dt.date
     df3 = df3.drop_duplicates('time', keep = 'last')
 
-    layout = {'text':'{}感染情况'.format(sel_province),'x':0.47,'xanchor':'center'}
-    return plot_trend(df1,df2,df3,layout)
+    return plot_trend(df1,df2,df3)
 
+@app.callback(
+    Output('title_infect_plot', 'children'),
+    [Input('map', 'clickData')])
+def update_title_infect_plot(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province not in data:
+        sel_province = eng_chn[sel_province]
+    return '{}感染情况'.format(sel_province)
+    
 
 
 # app.layout = html.Div([say_hi()])

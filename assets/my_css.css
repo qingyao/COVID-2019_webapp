@@ -1,0 +1,9 @@
+body { margin: 0; 
+background-color: #111111
+}
+
+.dash-spreadsheet-container table {
+    --accent: #FFFFFF !important;
+    --selected-background: #000000 !important;
+    --selected-color: #000000 !important;
+}
