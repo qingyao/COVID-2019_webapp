@@ -41,13 +41,13 @@ colors = {
 styles = {
     'H1': {
         'font-family':"Open Sans",
-        'font-size': '3.5vh',
+        'font-size': '3vh',
         'color':colors['text'],
         'text-align': 'center'
     },
     'H2': {
         'font-family':"Open Sans",
-        'font-size': '3vh',
+        'font-size': '2vh',
         'color':colors['text'],
         'text-align': 'center'
     }
@@ -108,7 +108,7 @@ for country, dat in oversea_data.items():
         curr_dat['province'].append(translate_map[country])
     except KeyError:
         with open('new_data.log','a') as f:
-            print(country, 'new country', file = f)
+            print(datetime.now().strftime('%d/%m/%Y'), country, 'new country', sep = ' -- ', file = f)
         continue 
     curr_dat['no'].append(dat['confirm']['no'][-1])
     if dat['cure']['no']:
@@ -246,6 +246,8 @@ def get_world_plot(dat):
     
     for country, val in dat.items():
         if country in county:
+            continue
+        elif country == 'China':
             continue
         else:
             print(country)
@@ -425,7 +427,7 @@ def toggle_main_plot(clickData):
     if sel_province in county:
         return '中国范围'
     else:
-        return '世界范围'
+        return '世界范围（中国除外）'
 
 
 @app.callback(
