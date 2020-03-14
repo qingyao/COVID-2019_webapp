@@ -3,6 +3,7 @@ exec(open(activate_this).read(), {'__file__': activate_this})
 import dash
 from flask import Flask
 import dash_table
+import dash_daq as daq
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
@@ -50,6 +51,11 @@ styles = {
         'font-size': '2vh',
         'color':colors['text'],
         'text-align': 'center'
+    },
+    'toggle': {
+        'font-family':"Open Sans",
+        #'font-size': '2vh',
+        'color':colors['text'],
     }
 
 }
@@ -121,28 +127,52 @@ for country, dat in oversea_data.items():
         curr_dat['no_death'].append(0)
 df = pd.DataFrame.from_dict(curr_dat)#.astype({'province_id':str})
 
-# print(df)
-df['text'] = 'Cured:' + df['no_cure'].astype(str) + '<br>' + 'Dead:' + df['no_death'].astype(str)
-fig = go.Figure(go.Choroplethmapbox(geojson=provinces, locations=df.province, z=df.no,
-                                    text=df.text,
-                                    # colorscale="BuPu", 
-                                    colorscale= [
-                                        [0, 'rgb(16, 16, 16)'],        #0
-                                        [1./10000, 'rgb(62, 58, 13)'], #10
-                                        [1./1000, 'rgb(109, 101, 10)'],  #100
-                                        [1./100, 'rgb(156, 143, 6)'],   #1000
-                                        [1./10, 'rgb(203, 186, 3)'],       #10000
-                                        [1., 'rgb(250, 228, 0)'],             #100000
-                                        ],
-                                    zmin=0, zmax=max(df.no),
-                                    showscale=False,
-                                    marker_opacity=0.7, marker_line_width=0))
+country_population = {}
+skip = 1 
+with open('country_population.txt') as f:
+    for l in f:
+        if skip:
+            skip-=1
+            continue
+        country,_,_,_,population,_ = l.strip().split('\t')
+        country_population[country] = int(population)
+with open('province_population.csv') as f:
+    for l in f:
+        prov, pop = l.strip().split(',')
+        country_population[prov]=int(pop)
 
-fig.update_layout(mapbox_style="carto-darkmatter",
-                plot_bgcolor= colors['background'],
-                paper_bgcolor= colors['background'],
-                  mapbox_zoom=2.7, mapbox_center = {"lat": 50, "lon": 10})
-fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+df['text'] = 'Cured:' + df['no_cure'].astype(str) + '<br>' + 'Dead:' + df['no_death'].astype(str)
+df2 = df
+df2 = df2[df2['province'].isin(country_population)]
+df2['population'] = [country_population[i] for i in df2['province']]
+df2['no'] /= df2['population']
+df2['no_cure'] /= df2['population']
+df2['no_death'] /= df2['population']
+def plot_chroplethmap(df):
+    fig = go.Figure(go.Choroplethmapbox(geojson=provinces, locations=df.province, z=df.no,
+                                        text=df.text,
+                                        # colorscale="BuPu", 
+                                        colorscale= [
+                                            [0, 'rgb(16, 16, 16)'],        #0
+                                            [1./10000, 'rgb(62, 58, 13)'], #10
+                                            [1./1000, 'rgb(109, 101, 10)'],  #100
+                                            [1./100, 'rgb(156, 143, 6)'],   #1000
+                                            [1./10, 'rgb(203, 186, 3)'],       #10000
+                                            [1., 'rgb(250, 228, 0)'],             #100000
+                                            ],
+                                        zmin=0, zmax=max(df.no),
+                                        showscale=False,
+                                        marker_opacity=0.7, marker_line_width=0))
+
+    fig.update_layout(mapbox_style="carto-darkmatter",
+                    plot_bgcolor= colors['background'],
+                    paper_bgcolor= colors['background'],
+                      mapbox_zoom=1.2, mapbox_center = {"lat": 50, "lon": 10})
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    return fig
+
+fig_map = plot_chroplethmap(df)
+fig_map2 = plot_chroplethmap(df2)
 
 def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
@@ -319,7 +349,8 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
                                             html.H1('COVID-19', id='title',style = styles['H1']),
                                             html.H2('截至北京时间{}'.format(last_update_time), id='subtitle',style = styles['H2']),
                                             html.H2('数据来缘：国家卫健委、世卫组织', id='subtitle2',style = styles['H2']),
-                                            dcc.Graph(id='map',figure=fig, config={'displayModeBar':False})]),
+                                            daq.DarkThemeProvider(children=[daq.BooleanSwitch(id = 'toggle_data', color = '#fae400', label = {'style':styles['toggle'],'label':'per capita'})],theme = {'dark':True}),
+                                            dcc.Graph(id='map',figure=fig_map, config={'displayModeBar':False})]),
                                             # width={'size':6, 'offset':1}
                                             xl = 6, 
                                             lg = 12,
@@ -420,6 +451,17 @@ def toggle_main_plot(clickData):
         return world_plot
 
 @app.callback(
+    Output('map','figure'),
+    [Input('toggle_data','on')])
+def toggle_per_capita(on):
+    if on:
+        print(df2.shape)
+        return fig_map2
+    else:
+        print(df.shape)
+        return fig_map
+
+@app.callback(
     Output('subtitle_main_plot', 'children'),
     [Input('map', 'clickData')])
 def toggle_main_plot(clickData):
@@ -504,4 +546,4 @@ def update_title_infect_plot(clickData):
 
 # app.layout = html.Div([say_hi()])
 if __name__ == '__main__':
-    app.run_server(host = '0.0.0.0',port=8051)#debug=True)
+    app.run_server(host = '0.0.0.0',port=8051)#, debug=True)
