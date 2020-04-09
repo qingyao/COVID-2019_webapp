@@ -174,6 +174,25 @@ def plot_chroplethmap(df):
 fig_map = plot_chroplethmap(df)
 fig_map2 = plot_chroplethmap(df2)
 
+def plot_newVStotal(df):
+    fig = make_subplots()
+    fig.add_trace(go.Scatter(x=df['no'],
+                    y=df['new'],
+                    line = {'color': colors['text']},
+                    marker = {'color':colors['text'], 'size':marker['small_size'],}
+                    ))
+    fig.update_layout(plot_bgcolor=colors['background'], 
+                        paper_bgcolor = colors['background'],
+                        font={'color':colors['text']},
+                        xaxis={'showgrid':False},
+                        yaxis={'showgrid':True,'gridcolor':colors['text']},
+                        xaxis_title="Total cases",
+                        yaxis_title="New cases",
+                        margin={"r":0,"t":0,"l":0,"b":0},
+                        xaxis_type="log", 
+                        yaxis_type="log")
+    return fig
+
 def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
     fig = make_subplots()
@@ -393,6 +412,7 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
             #     # html.H1('双击复原')]), 
             #     ]),
             #     align="center", width={'size':2,'offset':1},),
+                                        
                                         dbc.Col(
                                             html.Div([
                                                 html.H2('', id = 'title_infect_plot', style = styles['H2']),
@@ -416,6 +436,28 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
                                                 # width={'size':5}
                                                 )
                                         ,
+                                        dbc.Col(
+                                            html.Div([
+                                                html.H2('', id = 'title_newVStotal', style = styles['H2']),
+                                                dcc.Graph(
+                                                    id='newVStotal_plot',
+                                                    figure={'layout': {
+                                                    'plot_bgcolor': colors['background'],
+                                                    'paper_bgcolor': colors['background'],
+                                                    'xaxis':{'showgrid':False, 'visible':False},
+                                                    'yaxis':{'showgrid':False, 'visible':False},
+                                                    'font': {
+                                                        'color': colors['text']
+                                                    }}},
+                                                    config={'displayModeBar':False}
+                                                    )
+                                                ]),
+                                                xl = 3,
+                                                lg = 4,
+                                                md = 6,
+                                                style={ "margin-top":"40px"}
+                                                # width={'size':5}
+                                                ),
                                         dbc.Col([html.Div([html.H2(id = 'county_header', style = styles['H2']),
                                                     html.Br()]),
                                                 dbc.Table(id='counties')
@@ -534,6 +576,21 @@ def plot_infect(clickData):
     return plot_trend(df1,df2,df3)
 
 @app.callback(
+    Output('newVStotal_plot', 'figure'),
+    [Input('map', 'clickData')])
+def plot_newinfect(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province not in data:
+        sel_province = eng_chn[sel_province]
+    df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
+    df1['time'] = pd.to_datetime(df1['time']).dt.date
+    df1 = df1.drop_duplicates('time', keep = 'last')
+    df1['new'] = df1['no'].diff()
+
+    return plot_newVStotal(df1)
+
+
+@app.callback(
     Output('title_infect_plot', 'children'),
     [Input('map', 'clickData')])
 def update_title_infect_plot(clickData):
@@ -542,7 +599,15 @@ def update_title_infect_plot(clickData):
         sel_province = eng_chn[sel_province]
     return '{}感染情况'.format(sel_province)
     
-
+@app.callback(
+    Output('title_newVStotal', 'children'),
+    [Input('map', 'clickData')])
+def update_title_infect_plot(clickData):
+    sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
+    if sel_province not in data:
+        sel_province = eng_chn[sel_province]
+    return 'new cases VS total cases in {}'.format(sel_province)
+ 
 
 # app.layout = html.Div([say_hi()])
 if __name__ == '__main__':
