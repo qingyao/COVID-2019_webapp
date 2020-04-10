@@ -177,10 +177,31 @@ fig_map2 = plot_chroplethmap(df2)
 def plot_newVStotal(df):
     fig = make_subplots()
     fig.add_trace(go.Scatter(x=df['no'],
-                    y=df['new'],
+                    y=df['new_ma2day'],
                     line = {'color': colors['text']},
-                    marker = {'color':colors['text'], 'size':marker['small_size'],}
+                    marker = {'color':colors['text'], 'size':marker['small_size'],},
+                    showlegend = False
                     ))
+    no_max = max(df['no'])
+    no_min = min(df['no'])
+    fig.add_trace(go.Scatter(x=[no_min, no_max],
+                            y=[no_min/5, no_max/5],
+                            mode='lines',
+                            name='20% growth',
+                            showlegend = True,
+                            line={'dash':'dot', 'color': colors['text']}))
+    fig.add_trace(go.Scatter(x=[no_min, no_max],
+                            y=[no_min/10, no_max/10],
+                            mode='lines',
+                            name='10% growth',
+                            showlegend = True,
+                            line={'dash':'dash', 'color': colors['text']}))
+    fig.add_trace(go.Scatter(x=[no_min, no_max],
+                            y=[no_min/33, no_max/33],
+                            mode='lines',
+                            name='3% growth',
+                            showlegend = True,
+                            line={'dash':'dot', 'color': colors['text']}))
     fig.update_layout(plot_bgcolor=colors['background'], 
                         paper_bgcolor = colors['background'],
                         font={'color':colors['text']},
@@ -452,9 +473,8 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
                                                     config={'displayModeBar':False}
                                                     )
                                                 ]),
-                                                xl = 3,
-                                                lg = 4,
-                                                md = 6,
+                                                xl = 6, 
+                                                lg = 12,
                                                 style={ "margin-top":"40px"}
                                                 # width={'size':5}
                                                 ),
@@ -584,8 +604,10 @@ def plot_newinfect(clickData):
         sel_province = eng_chn[sel_province]
     df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
     df1['time'] = pd.to_datetime(df1['time']).dt.date
-    df1 = df1.drop_duplicates('time', keep = 'last')
+    df1.drop_duplicates('time', keep = 'last', inplace = True)
+    df1.reset_index(drop=True, inplace = True)
     df1['new'] = df1['no'].diff()
+    df1['new_ma2day'] = pd.concat([df1['new'],df1['new'][1:].reset_index(drop=True)], axis=1).mean(axis=1)
 
     return plot_newVStotal(df1)
 
