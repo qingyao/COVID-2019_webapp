@@ -17,8 +17,8 @@ with open('new_data/ncov_{}.txt'.format(now.strftime("%m%d-%Hh")),'w') as f:
 with open('new_data/ncov_{}.txt'.format(now.strftime("%m%d-%Hh"))) as f:
     content = f.read()
 
-output_str = re.search('("historyList.+),"relatedContent',content).group(1)
-new_dat = json.loads('{'+output_str+'}]}')
+output_str = re.search('("historyList.+),"specialAccounts',content).group(1)
+new_dat = json.loads('{'+output_str)
 #print(new_dat['domesticList'])
 #sys.exit()
 

@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import datetime
 from dash.dependencies import Input, Output
 from pymongo import MongoClient
+import numpy as np
 import json, re, sys, math, os
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -35,7 +36,9 @@ external_stylesheets = [
 
 colors = {
     'background': '#111111',
-    'text': '#747474'
+    'text': '#747474',
+    'pink':'#ccafaf',
+    'green':'#cae8d5'
 }
 
 
@@ -178,26 +181,31 @@ def plot_newVStotal(df):
     fig = make_subplots()
     fig.add_trace(go.Scatter(x=df['no'],
                     y=df['new_ma2day'],
-                    line = {'color': colors['text']},
-                    marker = {'color':colors['text'], 'size':marker['small_size'],},
+                    line = {'color': colors['pink']},
+                    name='last 2 days',
+                    showlegend = False
+                    )),
+    fig.add_trace(go.Scatter(x=df['no'],
+                    y=df['new_ma5day'],
+                    line = {'color': colors['green']},
+                    name='last 5 days',
                     showlegend = False
                     ))
-    no_max = max(df['no'])
-    no_min = min(df['no'])
-    fig.add_trace(go.Scatter(x=[no_min, no_max],
-                            y=[no_min/5, no_max/5],
+    no_max = max(df['no'])*1.05
+    fig.add_trace(go.Scatter(x=[5, round(no_max/5)*5],
+                            y=[1, round(no_max/5)],
                             mode='lines',
                             name='20% growth',
                             showlegend = True,
                             line={'dash':'dot', 'color': colors['text']}))
-    fig.add_trace(go.Scatter(x=[no_min, no_max],
-                            y=[no_min/10, no_max/10],
+    fig.add_trace(go.Scatter(x=[10, round(no_max/10)*10],
+                            y=[1, round(no_max/10)],
                             mode='lines',
                             name='10% growth',
                             showlegend = True,
                             line={'dash':'dash', 'color': colors['text']}))
-    fig.add_trace(go.Scatter(x=[no_min, no_max],
-                            y=[no_min/33, no_max/33],
+    fig.add_trace(go.Scatter(x=[33, round(no_max/33)*33],
+                            y=[1, round(no_max/33)],
                             mode='lines',
                             name='3% growth',
                             showlegend = True,
@@ -205,7 +213,7 @@ def plot_newVStotal(df):
     fig.update_layout(plot_bgcolor=colors['background'], 
                         paper_bgcolor = colors['background'],
                         font={'color':colors['text']},
-                        xaxis={'showgrid':False},
+                        xaxis={'showgrid':False,'range':[1,np.log10(no_max)]},
                         yaxis={'showgrid':True,'gridcolor':colors['text']},
                         xaxis_title="Total cases",
                         yaxis_title="New cases",
@@ -401,7 +409,7 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
                                                 html.H2('中国范围', id='subtitle_main_plot', style = styles['H2']),
                                                 dcc.Graph(
                                                 id='main_plot',
-                                                figure=china_plot,
+                                                figure=world_plot,
                                                 config={'displayModeBar':False}
                                                 )]), 
                                                 # width={'size':5}
@@ -608,7 +616,14 @@ def plot_newinfect(clickData):
     df1.reset_index(drop=True, inplace = True)
     df1['new'] = df1['no'].diff()
     df1['new_ma2day'] = pd.concat([df1['new'],df1['new'][1:].reset_index(drop=True)], axis=1).mean(axis=1)
-
+    df1['new_ma5day'] = pd.concat([df1['new'],
+                                   df1['new'][1:].reset_index(drop=True),
+                                   df1['new'][2:].reset_index(drop=True),
+                                   df1['new'][3:].reset_index(drop=True),
+                                   df1['new'][4:].reset_index(drop=True)], 
+                                   axis=1).mean(axis=1)
+    df1['new_ma2day']=df1['new_ma2day'].round().astype(int)
+    df1['new_ma5day']=df1['new_ma5day'].round().astype(int)
     return plot_newVStotal(df1)
 
 
