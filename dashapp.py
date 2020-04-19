@@ -111,14 +111,23 @@ for province, dat in data.items():
 
 with open('oversea_data_dict/'+sorted(os.listdir('oversea_data_dict'))[-1]) as f: #latest
     oversea_data = json.load(f)
-data.update(oversea_data)
+
+unknown_countries = set()
 for country, dat in oversea_data.items():
     try: 
-        curr_dat['province'].append(translate_map[country])
+        data.update({translate_map[country]:dat})
     except KeyError:
         with open('new_data.log','a') as f:
             print(datetime.now().strftime('%d/%m/%Y'), country, 'new country', sep = ' -- ', file = f)
+            unknown_countries.add(country)
         continue 
+
+for country, dat in oversea_data.items():
+    if country in unknown_countries:
+        continue
+
+    curr_dat['province'].append(translate_map[country])
+    
     curr_dat['no'].append(dat['confirm']['no'][-1])
     if dat['cure']['no']:
         curr_dat['no_cure'].append(dat['cure']['no'][-1])
@@ -228,7 +237,7 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
     fig.add_trace(go.Scatter(x=dataframe_1['time'][-2:], 
                             y=dataframe_1['no'][-2:],
-                            name = '确诊',
+                            name = 'Confirmed',
                             showlegend=False,
                             line = {'dash':'dash', 'color': '#FFE400'},
                             marker = {'color':colors['background'], 'size':marker['small_size'],
@@ -236,12 +245,33 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
                                     color='#FFE400',
                                     width=1.5
                                 )},          
-                            ))    
+                            ))  
+
+    fig.add_trace(go.Scatter(x=dataframe_1['time'], 
+                            y=(dataframe_1['no']*0.3).round().astype(int),
+                            name = '30% of total',
+                            showlegend=True,
+                            line = {'dash':'dot', 'color': colors['text']},
+                            ))  
+
+    fig.add_trace(go.Scatter(x=dataframe_1['time'], 
+                            y=(dataframe_1['no']/10).round().astype(int),
+                            name = '10% of total',
+                            showlegend=True,
+                            line = {'dash':'dash', 'color': colors['text']},
+                            ))  
+
+    fig.add_trace(go.Scatter(x=dataframe_1['time'], 
+                            y=(dataframe_1['no']/33.3).round().astype(int),
+                            name = '3% of total',
+                            showlegend=True,
+                            line = {'dash':'dashdot', 'color': colors['text']},
+                            ))  
 
     fig.add_trace(go.Scatter(x=dataframe_1['time'][:-1], 
                             y=dataframe_1['no'][:-1],
                             mode = 'lines+markers',
-                            name = '确诊',
+                            name = 'Confirmed',
                             marker = {'color':'#FFE400', 'size':marker['size'],
                             'line':dict(
                                     color=colors['background'],
@@ -251,7 +281,7 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
  
     fig.add_trace(go.Scatter(x=dataframe_2['time'][-2:], 
                             y=dataframe_2['no'][-2:],
-                            name = '治愈',
+                            name = 'Cured',
                             showlegend=False,
                             line = {'dash':'dash', 'color': '#14A76C'},
                             marker = {'color':colors['background'], 'size':marker['small_size'],
@@ -263,7 +293,7 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
  
     fig.add_trace(go.Scatter(x=dataframe_2['time'][:-1], 
                             y=dataframe_2['no'][:-1],
-                            name = '治愈',
+                            name = 'Cured',
                             mode = 'lines+markers',
                             marker = {'color':'#14A76C', 'size':marker['size'],
                             'line':dict(
@@ -274,7 +304,7 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
     fig.add_trace(go.Scatter(x=dataframe_3['time'][-2:], 
                             y=dataframe_3['no'][-2:],
-                            name = '死亡',
+                            name = 'Dead',
                             showlegend=False,
                             line = {'dash':'dash', 'color': '#FF652F'},
                             marker = {'color':colors['background'], 'size':marker['small_size'],
@@ -286,7 +316,7 @@ def plot_trend(dataframe_1,dataframe_2,dataframe_3):
 
     fig.add_trace(go.Scatter(x=dataframe_3['time'][:-1], 
                             y=dataframe_3['no'][:-1],
-                            name = '死亡',
+                            name = 'Dead',
                             mode = 'lines+markers',
                             marker = {'color':'#FF652F', 'size':marker['size'],
                             'line':dict(
@@ -325,10 +355,10 @@ def get_world_plot(dat):
     for country, val in dat.items():
         if country in county:
             continue
-        elif country == 'China':
-            continue
+#        elif country == 'China':
+#            continue
         else:
-            print(country)
+#            print(country)
         
             tmp1 = pd.Series(val['confirm']['no'], index = val['confirm']['time'])
             tmp1 = tmp1.loc[~tmp1.index.duplicated(keep='last')]
@@ -355,7 +385,7 @@ def get_world_plot(dat):
     df1['state'] = 'confirmed'
     df1.reset_index(inplace = True)
     df1.rename(columns = {'index':'time'}, inplace = True)
-    print(df1.columns)
+#    print(df1.columns)
 
     df2 = pd.DataFrame(df2.rename('no'))
     df2['state'] = 'cured'
@@ -380,7 +410,7 @@ china_plot = get_china_plot(data)
 world_plot = get_world_plot(data)
             
 last_update_time = datetime.fromisoformat(data['China']['confirm']['time'][-1])
-last_update_time = last_update_time.strftime("%m月%d日%H时")
+last_update_time = last_update_time.strftime("%b %d, %-I %p")
 
 server = Flask(__name__)
 server.secret_key ='test'
@@ -389,14 +419,14 @@ server.secret_key ='test'
 #def hello():
 #    return ('Hello')
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, server = server)
-app.title = '各国新冠肺炎实时追踪'
+app.title = 'COVID-19 timeline tracking'
 app.config.suppress_callback_exceptions = True 
 app.layout = dbc.Container(className="mt-4", fluid = True,
                     children = [dbc.Row([
                                         dbc.Col(html.Div([
                                             html.H1('COVID-19', id='title',style = styles['H1']),
-                                            html.H2('截至北京时间{}'.format(last_update_time), id='subtitle',style = styles['H2']),
-                                            html.H2('数据来缘：国家卫健委、世卫组织', id='subtitle2',style = styles['H2']),
+                                            html.H2('Last Update: {} (GMT+8)'.format(last_update_time), id='subtitle',style = styles['H2']),
+                                            html.H2('Data Source：WHO and NHC China', id='subtitle2',style = styles['H2']),
                                             daq.DarkThemeProvider(children=[daq.BooleanSwitch(id = 'toggle_data', color = '#fae400', label = {'style':styles['toggle'],'label':'per capita'})],theme = {'dark':True}),
                                             dcc.Graph(id='map',figure=fig_map, config={'displayModeBar':False})]),
                                             # width={'size':6, 'offset':1}
@@ -406,7 +436,7 @@ app.layout = dbc.Container(className="mt-4", fluid = True,
                                             ),
                                         dbc.Col(
                                             html.Div([
-                                                html.H2('中国范围', id='subtitle_main_plot', style = styles['H2']),
+                                                html.H2('World prevalence', id='subtitle_main_plot', style = styles['H2']),
                                                 dcc.Graph(
                                                 id='main_plot',
                                                 figure=world_plot,
@@ -537,9 +567,9 @@ def toggle_per_capita(on):
 def toggle_main_plot(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
     if sel_province in county:
-        return '中国范围'
+        return 'China prevalence'
     else:
-        return '世界范围（中国除外）'
+        return 'World prevalence'
 
 
 @app.callback(
@@ -557,8 +587,8 @@ def display_counties(clickData):
             cure.append(i[1])
             death.append(i[2])
 
-        df = pd.DataFrame({'区域': list(county[sel_province].keys()),'确诊':con, '治愈':cure,'死亡':death})
-        df.sort_values(by='确诊', inplace=True, ascending=False)
+        df = pd.DataFrame({'区域': list(county[sel_province].keys()),'Confirmed':con, 'Cured':cure,'Dead':death})
+        df.sort_values(by='Confirmed', inplace=True, ascending=False)
         # dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
         return dash_table.DataTable(
             style_data={
@@ -589,8 +619,6 @@ def display_counties(clickData):
     [Input('map', 'clickData')])
 def plot_infect(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
-    if sel_province not in data:
-        sel_province = eng_chn[sel_province]
     df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
     df2 = pd.DataFrame.from_dict({**data[sel_province]['cure'],**{'state':['cured']*len(data[sel_province]['cure']['no'])}})
     df3 = pd.DataFrame.from_dict({**data[sel_province]['death'],**{'state':['dead']*len(data[sel_province]['death']['no'])}})
@@ -608,22 +636,22 @@ def plot_infect(clickData):
     [Input('map', 'clickData')])
 def plot_newinfect(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
-    if sel_province not in data:
-        sel_province = eng_chn[sel_province]
     df1 = pd.DataFrame.from_dict({**data[sel_province]['confirm'],**{'state':['confirmed']*len(data[sel_province]['confirm']['no'])}})
     df1['time'] = pd.to_datetime(df1['time']).dt.date
     df1.drop_duplicates('time', keep = 'last', inplace = True)
     df1.reset_index(drop=True, inplace = True)
     df1['new'] = df1['no'].diff()
-    df1['new_ma2day'] = pd.concat([df1['new'],df1['new'][1:].reset_index(drop=True)], axis=1).mean(axis=1)
-    df1['new_ma5day'] = pd.concat([df1['new'],
-                                   df1['new'][1:].reset_index(drop=True),
-                                   df1['new'][2:].reset_index(drop=True),
-                                   df1['new'][3:].reset_index(drop=True),
-                                   df1['new'][4:].reset_index(drop=True)], 
-                                   axis=1).mean(axis=1)
+    df1['new_ma2day'] = pd.DataFrame({'0':df1['new'],
+                                     '1':[None]+list(df1['new'][:-1])}).mean(axis=1)
+    df1['new_ma5day']=pd.DataFrame({'0':df1['new'],
+                                   '1':[None]+list(df1['new'][:-1]),
+                                   '2':[None]*2+list(df1['new'][:-2]),
+                                   '3':[None]*3+list(df1['new'][:-3]),
+                                   '4':[None]*4+list(df1['new'][:-4])}).mean(axis=1)
+    df1.dropna(inplace=True)
     df1['new_ma2day']=df1['new_ma2day'].round().astype(int)
     df1['new_ma5day']=df1['new_ma5day'].round().astype(int)
+    df1=df1[:-1]
     return plot_newVStotal(df1)
 
 
@@ -632,17 +660,16 @@ def plot_newinfect(clickData):
     [Input('map', 'clickData')])
 def update_title_infect_plot(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
-    if sel_province not in data:
-        sel_province = eng_chn[sel_province]
-    return '{}感染情况'.format(sel_province)
+    if sel_province in county:
+        return '{}感染情况'.format(sel_province)
+    else:
+        return 'Current situation in {}'.format(sel_province)
     
 @app.callback(
     Output('title_newVStotal', 'children'),
     [Input('map', 'clickData')])
 def update_title_infect_plot(clickData):
     sel_province = clickData['points'][0]['location'].encode('utf-8').decode('utf-8')
-    if sel_province not in data:
-        sel_province = eng_chn[sel_province]
     return 'new cases VS total cases in {}'.format(sel_province)
  
 
